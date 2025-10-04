@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🎮 게임패드 네비게이션
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  게임패드로 웹사이트 네비게이션 (L1/L2: 페이지 이동, 스틱: 스크롤)
 // @author       Hskang
 // @match        *://*/*
@@ -108,12 +108,52 @@
     let stickCooldown = { up: 0, down: 0 };
     let buttonCooldown = { leftShoulder: 0, leftTrigger: 0 };
     let scrollInterval = null;
+    let bluetoothAvailable = false;
+    let bluetoothCheckInterval = null;
     const STICK_THRESHOLD = 0.7; // 스틱 감도
     const BUTTON_THRESHOLD = 0.5; // 버튼 감도
     const COOLDOWN_TIME = 1000; // 1초 쿨다운
     const SCROLL_SPEED = 15; // 스크롤 속도 (픽셀) - 더 빠르게
     const SCROLL_INTERVAL = 16; // 60fps (16ms)
     const PAGE_SCROLL_SPEED = window.innerHeight * 0.8; // 페이지업/다운 크기
+
+    // 블루투스 상태 확인 함수
+    async function checkBluetoothAvailability() {
+        try {
+            if ('bluetooth' in navigator) {
+                const available = await navigator.bluetooth.getAvailability();
+                const wasAvailable = bluetoothAvailable;
+                bluetoothAvailable = available;
+                
+                // 블루투스 상태가 변경되었을 때 UI 업데이트
+                if (wasAvailable !== available) {
+                    updateUIVisibility();
+                }
+                
+                return available;
+            } else {
+                // Web Bluetooth API를 지원하지 않는 경우 UI 숨김
+                bluetoothAvailable = false;
+                return false;
+            }
+        } catch (error) {
+            console.log('🔵 블루투스 상태 확인 실패:', error);
+            // 에러 발생 시 UI 숨김
+            bluetoothAvailable = false;
+            return false;
+        }
+    }
+
+    // UI 가시성 업데이트
+    function updateUIVisibility() {
+        if (toggleButton) {
+            if (bluetoothAvailable) {
+                toggleButton.style.display = 'flex';
+            } else {
+                toggleButton.style.display = 'none';
+            }
+        }
+    }
 
     // 토스트 표시 함수
     function showToast(message, duration = 2000) {
@@ -451,10 +491,27 @@
         
         // 초기 상태 설정
         updateGamepadStatus();
+        
+        // 블루투스 상태에 따른 초기 가시성 설정
+        updateUIVisibility();
     }
 
     // 초기화
     function init() {
+        // 블루투스 상태 초기 확인
+        checkBluetoothAvailability();
+        
+        // 블루투스 상태 주기적 확인 (5초마다)
+        bluetoothCheckInterval = setInterval(checkBluetoothAvailability, 5000);
+        
+        // 블루투스 상태 변경 이벤트 리스너 (지원되는 브라우저에서)
+        if ('bluetooth' in navigator && navigator.bluetooth.addEventListener) {
+            navigator.bluetooth.addEventListener('availabilitychanged', (event) => {
+                bluetoothAvailable = event.value;
+                updateUIVisibility();
+            });
+        }
+        
         // PostMessage 수신 (PWA 브리지용)
         window.addEventListener('message', (event) => {
             if (event.data.type === 'GAMEPAD_UPDATE' && isEnabled) {
