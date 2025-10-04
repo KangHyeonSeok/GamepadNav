@@ -112,7 +112,7 @@
     let bluetoothCheckInterval = null;
     const STICK_THRESHOLD = 0.7; // 스틱 감도
     const BUTTON_THRESHOLD = 0.5; // 버튼 감도
-    const COOLDOWN_TIME = 1000; // 1초 쿨다운
+    const COOLDOWN_TIME = 300; // 0.3초 쿨다운
     const SCROLL_SPEED = 15; // 스크롤 속도 (픽셀) - 더 빠르게
     const SCROLL_INTERVAL = 16; // 60fps (16ms)
     const PAGE_SCROLL_SPEED = window.innerHeight * 0.8; // 페이지업/다운 크기
